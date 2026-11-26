@@ -1,0 +1,72 @@
+// GPUForge Compute contract - version 1.
+// Evolution rules: never reuse or renumber a field tag; only add new optional fields;
+// breaking changes go into a new package (gpuforge.compute.v2).
+syntax = "proto3";
+
+package gpuforge.compute.v1;
+
+option java_multiple_files = true;
+option java_package = "tn.gpuforge.compute.grpc.v1";
+option java_outer_classname = "ComputeProto";
+
+import "google/protobuf/timestamp.proto";
+
+service ComputeService {
+  // Unary: reserve GPUs for a job.
+  // Errors: INVALID_ARGUMENT (bad count/type), RESOURCE_EXHAUSTED (not enough free GPUs),
+  //         ALREADY_EXISTS (job already has an allocation).
+  rpc AllocateGpus(AllocateGpusRequest) returns (AllocateGpusResponse);
+
+  // Unary: free the GPUs of a job. Errors: NOT_FOUND (no allocation for this job).
+  rpc ReleaseGpus(ReleaseGpusRequest) returns (ReleaseGpusResponse);
+
+  // Server streaming: live training metrics, one message per step/epoch, until the job ends.
+  // Errors: NOT_FOUND (unknown job), CANCELLED (job cancelled while streaming).
+  rpc StreamMetrics(StreamMetricsRequest) returns (stream MetricPoint);
+}
+
+enum GpuType {
+  GPU_TYPE_UNSPECIFIED = 0;
+  GPU_TYPE_A100 = 1;
+  GPU_TYPE_H100 = 2;
+  GPU_TYPE_RTX_4090 = 3;
+}
+
+message AllocateGpusRequest {
+  string job_id = 1;
+  GpuType gpu_type = 2;
+  int32 gpu_count = 3;
+  int32 epochs = 4;
+}
+
+message AllocateGpusResponse {
+  string allocation_id = 1;
+  string job_id = 2;
+  repeated string node_ids = 3;
+  google.protobuf.Timestamp allocated_at = 4;
+}
+
+message ReleaseGpusRequest {
+  string job_id = 1;
+}
+
+message ReleaseGpusResponse {
+  string job_id = 1;
+  double gpu_hours = 2;   // billed duration x gpu count
+  google.protobuf.Timestamp released_at = 3;
+}
+
+message StreamMetricsRequest {
+  string job_id = 1;
+}
+
+message MetricPoint {
+  string job_id = 1;
+  int32 epoch = 2;
+  int32 total_epochs = 3;
+  double loss = 4;
+  double accuracy = 5;
+  double gpu_utilization = 6;  // percent, 0-100
+  double gpu_temperature = 7;  // degrees Celsius
+  google.protobuf.Timestamp timestamp = 8;
+}
