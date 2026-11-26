@@ -1,0 +1,25 @@
+# Build output
+target/
+*.class
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# Secrets / local config
+.env
+*.local.yml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Course material (assignment brief, not ours to publish)
+docs/Mini-projet_SOA2026.pdf
+
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log
