@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GPUForge Billing contract - version 1.
+  Contract-first: this XSD is written BEFORE any Java code.
+  JAXB classes are generated from it, and the WSDL is generated from it at runtime
+  (http://localhost:8083/ws/billing.wsdl).
+  Naming rule: every operation is a <Name>Request / <Name>Response element pair.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://gpuforge.tn/billing/v1"
+           targetNamespace="http://gpuforge.tn/billing/v1"
+           elementFormDefault="qualified">
+
+    <!-- ===================== Simple types ===================== -->
+
+    <xs:simpleType name="GpuType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="A100"/>
+            <xs:enumeration value="H100"/>
+            <xs:enumeration value="RTX_4090"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="Money">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:fractionDigits value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Tunisian tax ID (matricule fiscal), e.g. 1234567A -->
+    <xs:simpleType name="TaxId">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9]{7}[A-Z]"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="InvoiceStatus">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="ISSUED"/>
+            <xs:enumeration value="PAID"/>
+            <xs:enumeration value="CANCELLED"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ===================== Complex types ===================== -->
+
+    <xs:complexType name="Invoice">
+        <xs:sequence>
+            <xs:element name="invoiceId" type="xs:string"/>
+            <xs:element name="jobId" type="xs:string"/>
+            <xs:element name="userId" type="xs:string"/>
+            <xs:element name="taxId" type="tns:TaxId"/>
+            <xs:element name="gpuType" type="tns:GpuType"/>
+            <xs:element name="gpuCount" type="xs:positiveInteger"/>
+            <xs:element name="gpuHours" type="xs:decimal"/>
+            <xs:element name="unitPrice" type="tns:Money"/>
+            <xs:element name="amountExclTax" type="tns:Money"/>
+            <xs:element name="vatRate" type="xs:decimal"/>
+            <xs:element name="amountInclTax" type="tns:Money"/>
+            <xs:element name="issuedAt" type="xs:dateTime"/>
+            <xs:element name="status" type="tns:InvoiceStatus"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ===================== Operation: CheckCredit ===================== -->
+
+    <xs:element name="CheckCreditRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="userId" type="xs:string"/>
+                <xs:element name="estimatedCost" type="tns:Money"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="CheckCreditResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="approved" type="xs:boolean"/>
+                <xs:element name="availableCredit" type="tns:Money"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ===================== Operation: CreateInvoice ===================== -->
+
+    <xs:element name="CreateInvoiceRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="jobId" type="xs:string"/>
+                <xs:element name="userId" type="xs:string"/>
+                <xs:element name="taxId" type="tns:TaxId"/>
+                <xs:element name="gpuType" type="tns:GpuType"/>
+                <xs:element name="gpuCount" type="xs:positiveInteger"/>
+                <xs:element name="gpuHours" type="xs:decimal"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="CreateInvoiceResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="invoice" type="tns:Invoice"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ===================== Operation: GetInvoice ===================== -->
+
+    <xs:element name="GetInvoiceRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="invoiceId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="GetInvoiceResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="invoice" type="tns:Invoice"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ===================== SOAP Fault details ===================== -->
+    <!-- Spring-WS rule: an element named <Operation>Fault becomes the wsdl:fault of that operation. -->
+
+    <xs:simpleType name="FaultCode">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="INSUFFICIENT_CREDIT"/>
+            <xs:enumeration value="UNKNOWN_USER"/>
+            <xs:enumeration value="INVALID_TAX_ID"/>
+            <xs:enumeration value="INVOICE_NOT_FOUND"/>
+            <xs:enumeration value="INVALID_REQUEST"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="FaultDetail">
+        <xs:sequence>
+            <xs:element name="code" type="tns:FaultCode"/>
+            <xs:element name="message" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="CheckCreditFault" type="tns:FaultDetail"/>
+    <xs:element name="CreateInvoiceFault" type="tns:FaultDetail"/>
+    <xs:element name="GetInvoiceFault" type="tns:FaultDetail"/>
+
+</xs:schema>
