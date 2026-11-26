@@ -1,0 +1,114 @@
+name: gpuforge
+
+# Usage:  cp .env.example .env   (then edit the password)
+#         docker compose up --build
+
+x-healthcheck: &spring-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 40s
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env (see .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates one database per service (jobdb, computedb, billingdb) on first start
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [gpuforge-net]
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: billing-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/billingdb
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP || exit 1"]
+      <<: *spring-healthcheck
+    networks: [gpuforge-net]
+
+  compute-service:
+    build:
+      context: .
+      dockerfile: compute-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/computedb
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SECONDS_PER_EPOCH: ${SECONDS_PER_EPOCH:-2}
+    ports:
+      - "8082:8082"   # actuator
+      - "9090:9090"   # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP || exit 1"]
+      <<: *spring-healthcheck
+    networks: [gpuforge-net]
+
+  job-service:
+    build:
+      context: .
+      dockerfile: job-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/jobdb
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # Service discovery through Docker Compose DNS
+      BILLING_SERVICE_URL: http://billing-service:8083/ws
+      COMPUTE_GRPC_ADDRESS: static://compute-service:9090
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      billing-service:
+        condition: service_healthy
+      compute-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      <<: *spring-healthcheck
+    networks: [gpuforge-net]
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      JOB_SERVICE_URL: http://job-service:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      job-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      <<: *spring-healthcheck
+    networks: [gpuforge-net]
+
+networks:
+  gpuforge-net:
+    driver: bridge
+
+volumes:
+  pgdata:
