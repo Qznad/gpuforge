@@ -1,0 +1,70 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: job-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobdb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+# gRPC client -> compute-service (Docker Compose DNS name in containers)
+grpc:
+  client:
+    compute-service:
+      address: ${COMPUTE_GRPC_ADDRESS:static://localhost:9090}
+      negotiation-type: plaintext
+
+gpuforge:
+  compute:
+    deadline: ${COMPUTE_DEADLINE:3s}          # gRPC client-side deadline
+  billing:
+    url: ${BILLING_SERVICE_URL:http://localhost:8083/ws}
+    connect-timeout: ${BILLING_CONNECT_TIMEOUT:2s}
+    read-timeout: ${BILLING_READ_TIMEOUT:3s}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      billing:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 2
+      compute:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+  retry:
+    instances:
+      billing:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true

@@ -1,0 +1,33 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: billing-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/billingdb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+gpuforge:
+  billing:
+    vat-rate: ${VAT_RATE:0.19}
+    # Price per GPU-hour, in TND
+    prices:
+      A100: ${PRICE_A100:6.500}
+      H100: ${PRICE_H100:12.000}
+      RTX_4090: ${PRICE_RTX_4090:2.800}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
