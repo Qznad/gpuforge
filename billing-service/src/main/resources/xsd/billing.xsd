@@ -3,8 +3,12 @@
   GPUForge Billing contract - version 1.
   Contract-first: this XSD is written BEFORE any Java code.
   JAXB classes are generated from it, and the WSDL is generated from it at runtime
-  (http://localhost:8083/ws/billing.wsdl).
-  Naming rule: every operation is a <Name>Request / <Name>Response element pair.
+  (http://localhost:8083/ws/billing.wsdl). Incoming requests are validated against it.
+
+  Conventions:
+  - every operation is a <Name>Request / <Name>Response element pair, plus a <Name>Fault detail;
+  - pricing is owned by this service: clients send GPU type and GPU-hours, never prices;
+  - amounts are in Tunisian dinars (TND) with 3 decimals (millimes).
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns:tns="http://gpuforge.tn/billing/v1"
@@ -21,6 +25,7 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <!-- A non-negative amount in TND -->
     <xs:simpleType name="Money">
         <xs:restriction base="xs:decimal">
             <xs:minInclusive value="0"/>
@@ -28,13 +33,29 @@
         </xs:restriction>
     </xs:simpleType>
 
-    <!-- Tunisian tax ID (matricule fiscal), e.g. 1234567A -->
+    <!-- An account balance in TND; negative when the customer owes money -->
+    <xs:simpleType name="Balance">
+        <xs:restriction base="xs:decimal">
+            <xs:fractionDigits value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- GPU-hours = number of GPUs x hours used -->
+    <xs:simpleType name="GpuHours">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:fractionDigits value="4"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Tunisian tax ID (matricule fiscal), simplified: 7 digits + 1 letter, e.g. 1234567A -->
     <xs:simpleType name="TaxId">
         <xs:restriction base="xs:string">
             <xs:pattern value="[0-9]{7}[A-Z]"/>
         </xs:restriction>
     </xs:simpleType>
 
+    <!-- PAID: fully covered by the prepaid credit. ISSUED: not (fully) paid yet. -->
     <xs:simpleType name="InvoiceStatus">
         <xs:restriction base="xs:string">
             <xs:enumeration value="ISSUED"/>
@@ -53,7 +74,7 @@
             <xs:element name="taxId" type="tns:TaxId"/>
             <xs:element name="gpuType" type="tns:GpuType"/>
             <xs:element name="gpuCount" type="xs:positiveInteger"/>
-            <xs:element name="gpuHours" type="xs:decimal"/>
+            <xs:element name="gpuHours" type="tns:GpuHours"/>
             <xs:element name="unitPrice" type="tns:Money"/>
             <xs:element name="amountExclTax" type="tns:Money"/>
             <xs:element name="vatRate" type="xs:decimal"/>
@@ -64,12 +85,14 @@
     </xs:complexType>
 
     <!-- ===================== Operation: CheckCredit ===================== -->
+    <!-- Can this user afford a job of this size? "No" is a normal answer (approved=false), not a fault. -->
 
     <xs:element name="CheckCreditRequest">
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="userId" type="xs:string"/>
-                <xs:element name="estimatedCost" type="tns:Money"/>
+                <xs:element name="gpuType" type="tns:GpuType"/>
+                <xs:element name="estimatedGpuHours" type="tns:GpuHours"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -78,12 +101,14 @@
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="approved" type="xs:boolean"/>
-                <xs:element name="availableCredit" type="tns:Money"/>
+                <xs:element name="estimatedCost" type="tns:Money"/>
+                <xs:element name="availableCredit" type="tns:Balance"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
 
     <!-- ===================== Operation: CreateInvoice ===================== -->
+    <!-- Idempotent per jobId: invoicing the same job twice returns the first invoice. -->
 
     <xs:element name="CreateInvoiceRequest">
         <xs:complexType>
@@ -93,7 +118,7 @@
                 <xs:element name="taxId" type="tns:TaxId"/>
                 <xs:element name="gpuType" type="tns:GpuType"/>
                 <xs:element name="gpuCount" type="xs:positiveInteger"/>
-                <xs:element name="gpuHours" type="xs:decimal"/>
+                <xs:element name="gpuHours" type="tns:GpuHours"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -129,11 +154,9 @@
 
     <xs:simpleType name="FaultCode">
         <xs:restriction base="xs:string">
-            <xs:enumeration value="INSUFFICIENT_CREDIT"/>
             <xs:enumeration value="UNKNOWN_USER"/>
             <xs:enumeration value="INVALID_TAX_ID"/>
             <xs:enumeration value="INVOICE_NOT_FOUND"/>
-            <xs:enumeration value="INVALID_REQUEST"/>
         </xs:restriction>
     </xs:simpleType>
 
