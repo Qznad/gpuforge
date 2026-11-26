@@ -1,0 +1,12 @@
+<!-- carol has no account -> SOAP Fault (Client), detail CheckCreditFault / UNKNOWN_USER -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:CheckCreditRequest>
+      <b:userId>carol</b:userId>
+      <b:gpuType>A100</b:gpuType>
+      <b:estimatedGpuHours>1</b:estimatedGpuHours>
+    </b:CheckCreditRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

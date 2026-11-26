@@ -1,0 +1,12 @@
+<!-- bob (20 TND) asks for 10 H100 GPU-hours: 142.800 TND incl. VAT -> approved = false -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:CheckCreditRequest>
+      <b:userId>bob</b:userId>
+      <b:gpuType>H100</b:gpuType>
+      <b:estimatedGpuHours>10</b:estimatedGpuHours>
+    </b:CheckCreditRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

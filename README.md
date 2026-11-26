@@ -5,7 +5,7 @@
 Mini-project for the *Architecture SOA et Services Web* course (2026).
 Java 17 · Spring Boot 3.3 · Spring Cloud Gateway · gRPC · Spring-WS · PostgreSQL · Docker Compose
 
-> **Status:** 🚧 in progress. The foundations are done (project structure, service contracts, Docker setup). The business logic is being implemented. See the [Roadmap](#roadmap).
+> **Status:** 🚧 in progress. Foundations ✅ · billing-service (SOAP) ✅ · compute-service (gRPC) next. See the [Roadmap](#roadmap).
 
 ---
 
@@ -57,8 +57,8 @@ sequenceDiagram
     participant G as compute-service (gRPC)
 
     C->>J: POST /api/v1/jobs
-    J->>B: CheckCredit(user, estimated cost)
-    B-->>J: approved / SOAP Fault (insufficient credit)
+    J->>B: CheckCredit(user, GPU type, estimated GPU-hours)
+    B-->>J: approved true/false + estimated cost
     J->>G: AllocateGpus(job, GPU type, count)
     G-->>J: allocation / RESOURCE_EXHAUSTED
     J-->>C: 201 Created (job RUNNING or QUEUED)
@@ -110,6 +110,35 @@ curl http://localhost:8083/ws/billing.wsdl          # generated SOAP WSDL
 grpcurl -plaintext localhost:9090 list              # gRPC services (reflection enabled)
 ```
 
+### Try the SOAP billing service
+
+Two demo customers are created automatically:
+
+| User | Tax ID | Starting credit |
+|---|---|---|
+| `alice` | `1234567A` | 500.000 TND |
+| `bob` | `7654321B` | 20.000 TND |
+
+Ready-made requests are in [`samples/billing/`](samples/billing). Send one with curl:
+
+```bash
+curl -s -H "Content-Type: text/xml; charset=utf-8" \
+     --data-binary @samples/billing/check-credit-approved.xml \
+     http://localhost:8083/ws
+```
+
+| Sample | Expected result |
+|---|---|
+| `check-credit-approved.xml` | `approved=true`, estimated cost 15.470 TND |
+| `check-credit-refused.xml` | `approved=false`: bob cannot afford 10 H100-hours (142.800 TND) |
+| `check-credit-unknown-user.xml` | SOAP Fault `Client`, detail `UNKNOWN_USER` |
+| `check-credit-invalid.xml` | SOAP Fault `Client`, "Validation error": `TPU_V5` breaks the XSD |
+| `create-invoice.xml` | Invoice of 30.940 TND, status `PAID`. Send it twice: the same invoice comes back, credit debited once |
+| `create-invoice-wrong-tax-id.xml` | SOAP Fault `Client`, detail `INVALID_TAX_ID` |
+| `get-invoice.xml` | The invoice (replace `INV-XXXXXXXX` with a real id), or detail `INVOICE_NOT_FOUND` |
+
+Prices per GPU-hour (configurable): A100 6.500 TND · H100 12.000 TND · RTX 4090 2.800 TND, plus 19 % VAT.
+
 ### Ports
 
 | Service | URL |
@@ -139,6 +168,7 @@ gpuforge/
 ├── job-service/          REST API (+ gRPC and SOAP clients)
 ├── compute-service/      gRPC server - src/main/proto holds the .proto contract
 ├── billing-service/      SOAP server - src/main/resources/xsd holds the XSD contract
+├── samples/              Ready-made requests for manual testing
 ├── docker/postgres/      Database initialisation (one database per service)
 ├── docker-compose.yml    Whole platform: network, volumes, healthchecks, startup order
 ├── .env.example          Configuration template
@@ -158,12 +188,16 @@ Each service has its own multi-stage `Dockerfile`: it builds with Maven, then ru
 - [x] Multi-stage Dockerfiles and Docker Compose (dedicated network, volume, healthchecks, startup order)
 - [x] Configuration from environment variables, Actuator health endpoints
 
-### Phase 1 - billing-service (SOAP)
-- [ ] Credit accounts and invoices stored in PostgreSQL
-- [ ] `CheckCredit`, `CreateInvoice`, `GetInvoice` endpoints
-- [ ] Pricing per GPU type, 19 % VAT, Tunisian tax ID (*matricule fiscal*) validation
-- [ ] SOAP Faults: insufficient credit, unknown user, invalid tax ID, invoice not found
-- [ ] Unit tests and an integration test
+### Phase 1 - billing-service (SOAP) ✅
+- [x] Credit accounts and invoices stored in PostgreSQL (optimistic locking on balances)
+- [x] `CheckCredit`, `CreateInvoice`, `GetInvoice` endpoints
+- [x] Pricing per GPU type, 19 % VAT, amounts rounded to the millime
+- [x] Tax ID (*matricule fiscal*) checked against the account
+- [x] `CreateInvoice` idempotent per job, so callers can retry safely
+- [x] Every request and response validated against the XSD
+- [x] SOAP Faults with a structured detail: unknown user, invalid tax ID, invoice not found
+- [x] 13 unit tests and 9 integration tests (full SOAP stack)
+- [x] Sample requests in `samples/billing/`
 
 ### Phase 2 - compute-service (gRPC)
 - [ ] GPU inventory (nodes per GPU type) and allocations

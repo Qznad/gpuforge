@@ -1,0 +1,16 @@
+<!-- Invoice job-demo-1: 2 A100 GPUs for 2 hours = 4 GPU-hours = 26.000 + 19% VAT = 30.940 TND.
+     Send it twice: the same invoice comes back and alice is debited only once (idempotent). -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:CreateInvoiceRequest>
+      <b:jobId>job-demo-1</b:jobId>
+      <b:userId>alice</b:userId>
+      <b:taxId>1234567A</b:taxId>
+      <b:gpuType>A100</b:gpuType>
+      <b:gpuCount>2</b:gpuCount>
+      <b:gpuHours>4</b:gpuHours>
+    </b:CreateInvoiceRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

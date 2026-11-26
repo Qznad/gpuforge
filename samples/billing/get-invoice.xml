@@ -1,0 +1,11 @@
+<!-- Replace INV-XXXXXXXX with an invoiceId returned by CreateInvoice.
+     An unknown id -> SOAP Fault (Client), detail GetInvoiceFault / INVOICE_NOT_FOUND -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:GetInvoiceRequest>
+      <b:invoiceId>INV-XXXXXXXX</b:invoiceId>
+    </b:GetInvoiceRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

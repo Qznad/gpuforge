@@ -1,0 +1,12 @@
+<!-- "TPU_V5" is not a GPU type of the contract -> rejected by XSD validation (Client fault) -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:CheckCreditRequest>
+      <b:userId>alice</b:userId>
+      <b:gpuType>TPU_V5</b:gpuType>
+      <b:estimatedGpuHours>1</b:estimatedGpuHours>
+    </b:CheckCreditRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

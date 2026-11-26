@@ -1,0 +1,15 @@
+<!-- alice uses bob's tax ID -> SOAP Fault (Client), detail CreateInvoiceFault / INVALID_TAX_ID -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:b="http://gpuforge.tn/billing/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <b:CreateInvoiceRequest>
+      <b:jobId>job-demo-2</b:jobId>
+      <b:userId>alice</b:userId>
+      <b:taxId>7654321B</b:taxId>
+      <b:gpuType>A100</b:gpuType>
+      <b:gpuCount>1</b:gpuCount>
+      <b:gpuHours>1</b:gpuHours>
+    </b:CreateInvoiceRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
