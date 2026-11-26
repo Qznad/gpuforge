@@ -16,11 +16,13 @@ spring:
 gpuforge:
   billing:
     vat-rate: ${VAT_RATE:0.19}
-    # Price per GPU-hour, in TND
+    # Price of one GPU-hour, in TND. Brackets keep the enum names exact.
     prices:
-      A100: ${PRICE_A100:6.500}
-      H100: ${PRICE_H100:12.000}
-      RTX_4090: ${PRICE_RTX_4090:2.800}
+      "[A100]": ${PRICE_A100:6.500}
+      "[H100]": ${PRICE_H100:12.000}
+      "[RTX_4090]": ${PRICE_RTX_4090:2.800}
+    demo-data:
+      enabled: ${DEMO_DATA_ENABLED:true}
 
 management:
   endpoints:
